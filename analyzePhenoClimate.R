@@ -102,13 +102,20 @@ Jan1<-subset(temp, adjDOY==185)
 # get June 30th
 Jun30<-subset(temp, adjDOY==365)
 
+# get freeze days
+frzDays<-temp %>% group_by(adjYear) %>%
+  summarize(count=sum(minT<=0, na.rm = TRUE),
+            minT=min(minT, na.rm = TRUE))
+
 # combine dfs
 phenoClim<-cbind.data.frame(phenoDates,Oct1[,c("cumPrecip","gdd")],
                             Jan1[,c("cumPrecip","gdd")],
-                            Jun30[,c("cumPrecip","gdd")])
+                            Jun30[,c("cumPrecip","gdd")],
+                            frzDays[,c("count","minT")])
 colnames(phenoClim)[7:ncol(phenoClim)]<-c("Oct1pcp","Oct1gdd",
                                           "Jan1pcp","Jan1gdd",
-                                          "Jun30pcp","Jun30gdd")
+                                          "Jun30pcp","Jun30gdd",
+                                          "frzDays","minT")
 
 # fall and winter precip
 phenoClim$OctJunPcp<-phenoClim$Jun30pcp-phenoClim$Oct1pcp
@@ -118,17 +125,20 @@ phenoClim$JanJunGDD<-phenoClim$Jun30gdd-phenoClim$Jan1gdd
 
 # corr matrix
 library("PerformanceAnalytics")
-temp <- phenoClim[, c(2:15)]
+temp <- phenoClim[, c(2:17)]
 chart.Correlation(temp, histogram=TRUE, pch=19)
 
 # stepwise linear regression
 library(MASS)
 # Fit the full model 
-full.model <- lm(firstBloom ~., data = phenoClim[,c(2,7:15)])
+full.model <- lm(maxBlooms ~., data = phenoClim[,c(6,7:17)])
 # Stepwise regression model
 step.model <- stepAIC(full.model, direction = "both", 
                       trace = FALSE)
 summary(step.model)
 
+# lm 
+full.model <- lm(maxBlooms ~minT+Jun30pcp+Jun30gdd, data = phenoClim)
+summary(full.model)
 
 
